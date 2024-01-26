@@ -1,4 +1,4 @@
-package cache
+package strategy
 
 type Value interface {
 	Len() int

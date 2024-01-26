@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"jie_cache/jiecache"
+	"github.com/gin-gonic/gin"
+	"jie_cache/app"
+	"jie_cache/cache"
 	"log"
 	"net/http"
 )
@@ -14,8 +16,8 @@ var db = map[string]string{
 	"Sam":  "567",
 }
 
-func createGroup() *jiecache.Group {
-	return jiecache.NewGroup("scores", 2<<10, jiecache.GetterFunc(
+func createGroup() *cache.Group {
+	return cache.NewGroup("scores", cache.LRU, 2<<10, cache.GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
@@ -25,19 +27,19 @@ func createGroup() *jiecache.Group {
 		}))
 }
 
-func startCacheServer(addr string, addrs []string, gee *jiecache.Group) {
-	peers := jiecache.NewHTTPPool(addr)
-	peers.Set(addrs...)
-	gee.RegisterPeers(peers)
-	log.Println("jiecache is running at", addr)
-	log.Fatal(http.ListenAndServe(addr[7:], peers))
+func startCacheServer(addr string, addrs []string, group *cache.Group) {
+	server := app.NewServer(gin.ReleaseMode, addr)
+	server.Set(addrs...)
+	group.RegisterPeerPicker(server)
+	log.Println("cache is running at", addr)
+	server.Start()
 }
 
-func startAPIServer(apiAddr string, gee *jiecache.Group) {
+func startAPIServer(apiAddr string, group *cache.Group) {
 	http.Handle("/api", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")
-			view, err := gee.Get(key)
+			view, err := group.Get(key)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -46,23 +48,23 @@ func startAPIServer(apiAddr string, gee *jiecache.Group) {
 			w.Write(view.ByteSlice())
 
 		}))
-	log.Println("fontend server is running at", apiAddr)
-	log.Fatal(http.ListenAndServe(apiAddr[7:], nil))
+	log.Println("frontend server is running at", apiAddr)
+	log.Fatal(http.ListenAndServe(apiAddr, nil))
 
 }
 
 func main() {
 	var port int
 	var api bool
-	flag.IntVar(&port, "port", 8001, "jiecache server port")
+	flag.IntVar(&port, "port", 8001, "cache server port")
 	flag.BoolVar(&api, "api", false, "Start a api server?")
 	flag.Parse()
 
-	apiAddr := "http://localhost:9999"
+	apiAddr := "localhost:9999"
 	addrMap := map[int]string{
-		8001: "http://localhost:8001",
-		8002: "http://localhost:8002",
-		8003: "http://localhost:8003",
+		8001: "localhost:8001",
+		8002: "localhost:8002",
+		8003: "localhost:8003",
 	}
 
 	var addrs []string
@@ -70,9 +72,9 @@ func main() {
 		addrs = append(addrs, v)
 	}
 
-	gee := createGroup()
+	group := createGroup()
 	if api {
-		go startAPIServer(apiAddr, gee)
+		go startAPIServer(apiAddr, group)
 	}
-	startCacheServer(addrMap[port], addrs, gee)
+	startCacheServer(addrMap[port], addrs, group)
 }

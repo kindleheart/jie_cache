@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ func TestGetter(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	loadCounts := make(map[string]int, len(db))
-	gee := NewGroup("scores", 2<<10, GetterFunc(
+	jie := NewGroup("scores", LFU, 2<<10, GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
@@ -40,22 +40,22 @@ func TestGet(t *testing.T) {
 		}))
 
 	for k, v := range db {
-		if view, err := gee.Get(k); err != nil || view.String() != v {
+		if view, err := jie.Get(k); err != nil || view.String() != v {
 			t.Fatal("failed to get value of Tom")
 		}
-		if _, err := gee.Get(k); err != nil || loadCounts[k] > 1 {
+		if _, err := jie.Get(k); err != nil || loadCounts[k] > 1 {
 			t.Fatalf("cache %s miss", k)
 		}
 	}
 
-	if view, err := gee.Get("unknown"); err == nil {
+	if view, err := jie.Get("unknown"); err == nil {
 		t.Fatalf("the value of unknow should be empty, but %s got", view)
 	}
 }
 
 func TestGetGroup(t *testing.T) {
 	groupName := "scores"
-	NewGroup(groupName, 2<<10, GetterFunc(
+	NewGroup(groupName, LFU, 2<<10, GetterFunc(
 		func(key string) (bytes []byte, err error) { return }))
 	if group := GetGroup(groupName); group == nil || group.name != groupName {
 		t.Fatalf("group %s not exist", groupName)

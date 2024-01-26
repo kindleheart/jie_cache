@@ -2,7 +2,7 @@ package lru
 
 import (
 	"container/list"
-	"jie_cache/cache"
+	"jie_cache/strategy"
 )
 
 type Cache struct {
@@ -10,15 +10,15 @@ type Cache struct {
 	nBytes    int64 // 当前使用的内存
 	ll        *list.List
 	nodeMap   map[string]*list.Element
-	OnEvicted func(key string, value cache.Value) // key被删除时的回调函数
+	OnEvicted func(key string, value strategy.Value) // key被删除时的回调函数
 }
 
 type entry struct {
 	key   string
-	value cache.Value
+	value strategy.Value
 }
 
-func New(maxBytes int64, onEvicted func(string, cache.Value)) *Cache {
+func New(maxBytes int64, onEvicted func(string, strategy.Value)) *Cache {
 	return &Cache{
 		maxBytes:  maxBytes,
 		ll:        list.New(),
@@ -27,7 +27,7 @@ func New(maxBytes int64, onEvicted func(string, cache.Value)) *Cache {
 	}
 }
 
-func (c *Cache) Get(key string) (value cache.Value, ok bool) {
+func (c *Cache) Get(key string) (value strategy.Value, ok bool) {
 	if node, ok := c.nodeMap[key]; ok {
 		c.ll.MoveToFront(node)
 		kv := node.Value.(*entry)
@@ -36,7 +36,7 @@ func (c *Cache) Get(key string) (value cache.Value, ok bool) {
 	return
 }
 
-func (c *Cache) Add(key string, value cache.Value) {
+func (c *Cache) Add(key string, value strategy.Value) {
 	if node, ok := c.nodeMap[key]; ok {
 		c.ll.MoveToFront(node)
 		kv := node.Value.(*entry)

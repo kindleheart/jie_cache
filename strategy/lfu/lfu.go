@@ -2,7 +2,7 @@ package lfu
 
 import (
 	"container/list"
-	"jie_cache/cache"
+	"jie_cache/strategy"
 )
 
 type Cache struct {
@@ -11,16 +11,16 @@ type Cache struct {
 	minFreq   int   // 最少访问频率
 	listMap   map[int]*list.List
 	nodeMap   map[string]*list.Element
-	OnEvicted func(key string, value cache.Value) // key被删除时的回调函数
+	OnEvicted func(key string, value strategy.Value) // key被删除时的回调函数
 }
 
 type entry struct {
 	key   string
-	value cache.Value
+	value strategy.Value
 	freq  int
 }
 
-func New(maxBytes int64, onEvicted func(key string, value cache.Value)) *Cache {
+func New(maxBytes int64, onEvicted func(key string, value strategy.Value)) *Cache {
 	return &Cache{
 		maxBytes:  maxBytes,
 		listMap:   make(map[int]*list.List),
@@ -29,10 +29,10 @@ func New(maxBytes int64, onEvicted func(key string, value cache.Value)) *Cache {
 	}
 }
 
-func (c *Cache) Get(key string) (cache.Value, bool) {
+func (c *Cache) Get(key string) (strategy.Value, bool) {
 	if node, ok := c.nodeMap[key]; ok {
 		kv := node.Value.(*entry)
-		c.MoveNodeToNextLevel(node)
+		c.moveNodeToNextLevel(node)
 		return kv.value, true
 	}
 	return nil, false
@@ -45,12 +45,12 @@ func (c *Cache) getList(freq int) *list.List {
 	return c.listMap[freq]
 }
 
-func (c *Cache) Add(key string, value cache.Value) {
+func (c *Cache) Add(key string, value strategy.Value) {
 	if node, ok := c.nodeMap[key]; ok {
 		kv := node.Value.(*entry)
 		c.nBytes += int64(value.Len()) - int64(kv.value.Len())
 		kv.value = value
-		c.MoveNodeToNextLevel(node)
+		c.moveNodeToNextLevel(node)
 	} else {
 		ll := c.getList(1)
 		c.minFreq = 1
@@ -66,7 +66,7 @@ func (c *Cache) Add(key string, value cache.Value) {
 	}
 }
 
-func (c *Cache) MoveNodeToNextLevel(node *list.Element) {
+func (c *Cache) moveNodeToNextLevel(node *list.Element) {
 	kv := node.Value.(*entry)
 	c.listMap[kv.freq].Remove(node)
 	if c.listMap[c.minFreq].Len() == 0 {
