@@ -12,7 +12,7 @@ type Cache struct {
 	mu        sync.Mutex
 	baseCache strategy.BaseCache
 	maxBytes  int64
-	kind      string
+	cacheType string
 }
 
 const (
@@ -20,14 +20,14 @@ const (
 	LFU = "LFU"
 )
 
-func New(kind string, maxBytes int64) *Cache {
-	if kind != LRU && kind != LFU {
+func New(cacheType string, maxBytes int64) *Cache {
+	if cacheType != LRU && cacheType != LFU {
 		panic("don't have this strategy")
 	}
 	return &Cache{
-		mu:       sync.Mutex{},
-		maxBytes: maxBytes,
-		kind:     kind,
+		mu:        sync.Mutex{},
+		maxBytes:  maxBytes,
+		cacheType: cacheType,
 	}
 }
 
@@ -35,12 +35,13 @@ func (c *Cache) add(key string, value ByteView) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// 延迟创建，节省内存
-	if c.baseCache == nil {
-		if c.kind == LRU {
-			c.baseCache = lru.New(c.maxBytes, nil)
-		} else {
-			c.baseCache = lfu.New(c.maxBytes, nil)
-		}
+	switch c.cacheType {
+	case LFU:
+		c.baseCache = lru.New(c.maxBytes, nil)
+	case LRU:
+		c.baseCache = lfu.New(c.maxBytes, nil)
+	default:
+		panic("Please select the correct algorithm!")
 	}
 	c.baseCache.Add(key, value)
 }

@@ -17,14 +17,14 @@ var db = map[string]string{
 }
 
 func createGroup() *cache.Group {
-	return cache.NewGroup("scores", cache.LRU, 2<<10, cache.GetterFunc(
+	return cache.NewGroup("scores", cache.LRU, cache.GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
 				return []byte(v), nil
 			}
 			return nil, fmt.Errorf("%s not exist", key)
-		}))
+		}), cache.MaxMinuteRemoteQPS(2))
 }
 
 func startCacheServer(addr string, addrs []string, group *cache.Group) {

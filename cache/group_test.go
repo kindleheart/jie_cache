@@ -26,7 +26,7 @@ func TestGetter(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	loadCounts := make(map[string]int, len(db))
-	jie := NewGroup("scores", LFU, 2<<10, GetterFunc(
+	jie := NewGroup("scores", LFU, GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[SlowDB] search key", key)
 			if v, ok := db[key]; ok {
@@ -55,7 +55,7 @@ func TestGet(t *testing.T) {
 
 func TestGetGroup(t *testing.T) {
 	groupName := "scores"
-	NewGroup(groupName, LFU, 2<<10, GetterFunc(
+	NewGroup(groupName, LFU, GetterFunc(
 		func(key string) (bytes []byte, err error) { return }))
 	if group := GetGroup(groupName); group == nil || group.name != groupName {
 		t.Fatalf("group %s not exist", groupName)
